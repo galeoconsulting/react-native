@@ -21,16 +21,11 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Picture;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Build;
 import android.text.TextUtils;
 import android.view.ViewGroup.LayoutParams;
-import android.webkit.ConsoleMessage;
-import android.webkit.GeolocationPermissions;
-import android.webkit.WebChromeClient;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.webkit.JavascriptInterface;
-import android.webkit.ValueCallback;
+import android.webkit.*;
 
 import com.facebook.common.logging.FLog;
 import com.facebook.react.common.ReactConstants;
@@ -51,6 +46,8 @@ import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.uimanager.events.ContentSizeChangeEvent;
 import com.facebook.react.uimanager.events.Event;
 import com.facebook.react.uimanager.events.EventDispatcher;
+import com.facebook.react.views.webview.custom.ClientCertRequestCallback;
+import com.facebook.react.views.webview.custom.ClientCertRequestCallbackHolder;
 import com.facebook.react.views.webview.events.TopLoadingErrorEvent;
 import com.facebook.react.views.webview.events.TopLoadingFinishEvent;
 import com.facebook.react.views.webview.events.TopLoadingStartEvent;
@@ -105,6 +102,24 @@ public class ReactWebViewManager extends SimpleViewManager<WebView> {
   private WebViewConfig mWebViewConfig;
   private @Nullable WebView.PictureListener mPictureListener;
 
+  public interface ClientCertRequestCallback {
+    void onReceivedClientCertRequest(WebView view, ClientCertRequest request);
+  }
+
+  public static class ClientCertRequestCallbackHolder {
+
+    private static ClientCertRequestCallback callback;
+
+    public static ClientCertRequestCallback getCallback() {
+      return callback;
+    }
+
+    public static void setCallback(ClientCertRequestCallback callback) {
+      ReactWebViewManager.ClientCertRequestCallbackHolder.callback = callback;
+    }
+
+  }
+
   protected static class ReactWebViewClient extends WebViewClient {
 
     private boolean mLastLoadFailed = false;
@@ -119,6 +134,16 @@ public class ReactWebViewManager extends SimpleViewManager<WebView> {
         reactWebView.linkBridge();
         emitFinishEvent(webView, url);
       }
+    }
+
+    @Override
+    public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+      handler.proceed();
+    }
+
+    @Override
+    public void onReceivedClientCertRequest(WebView view, ClientCertRequest request) {
+      ClientCertRequestCallbackHolder.getCallback().onReceivedClientCertRequest(view, request);
     }
 
     @Override
